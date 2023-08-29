@@ -33,12 +33,13 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             logger.info("Processing update: {}", update);
             String message = update.message().text();
             Long chatId = update.message().chat().id();
-            switch (message) {
-                case START->{
-                    String userName= update.message().chat().username();
-                    startCommand(chatId,userName);
-                }
-                default->unknownCommand(chatId);
+            if (message.equals(START)) {
+                String userName = update.message().chat().username();
+                String firstName = update.message().chat().firstName();
+                String lastName = update.message().chat().lastName();
+                startCommand(chatId, userName, firstName, lastName);
+            } else {
+                unknownCommand(chatId);
             }
 
         });
@@ -46,9 +47,9 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
 
-    private void startCommand(Long chatId, String userName) {
+    private void startCommand(Long chatId, String userName, String firstName, String lastName) {
         var text = "Добро пожаловать в бот, %s !";
-        var formattedText = String.format(text, userName);
+        var formattedText = String.format(text, userName,firstName,lastName);
         sendMessage(chatId, formattedText);
     }
 
