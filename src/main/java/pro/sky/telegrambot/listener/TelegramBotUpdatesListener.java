@@ -9,18 +9,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import pro.sky.telegrambot.model.NotificationTask;
+import pro.sky.telegrambot.repository.TaskRepository;
 
 import javax.annotation.PostConstruct;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.zip.DataFormatException;
 
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static final String START = "/start";
+    private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16}(\\s)[\\W+]+)");
+    private static final DateTimeFormatter DATE_TIME_PATTERN = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
 
     @Autowired
     private TelegramBot telegramBot;
+    private final TaskRepository repository;
+
+    public TelegramBotUpdatesListener(TaskRepository repository) {
+        this.repository = repository;
+    }
 
     @PostConstruct
     public void init() {
@@ -31,8 +46,8 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     public int process(List<Update> updates) {
         updates.forEach(update -> {
             logger.info("Processing update: {}", update);
-            String message = update.message().text();
-            Long chatId = update.message().chat().id();
+            var message = update.message().text();
+            var chatId = update.message().chat().id();
             if (message.equals(START)) {
                 String userName = update.message().chat().username();
                 String firstName = update.message().chat().firstName();
@@ -41,16 +56,44 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             } else {
                 unknownCommand(chatId);
             }
-
+            var matcher = PATTERN.matcher(message);
+            if (matcher.matches()) {
+                var dateTime = parse(matcher.group(1));
+                if (dateTime == null) {
+                    telegramBot.execute(new SendMessage(chatId,"Дата указана не верно"));
+                }
+                var taskText = matcher.group(3);
+                repository.save(new NotificationTask(chatId, taskText, dateTime));
+                telegramBot.execute(new SendMessage(chatId,"уведомление запланировано"));
+            }
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
 
+    private LocalDateTime parse(String text) {
+        try {
+            return LocalDateTime.parse(text, DATE_TIME_PATTERN);
+        } catch (DateTimeParseException e) {
+            logger.error("Cannot parse date and time:{}", text, e);
+        }
+        return null;
+    }
 
     private void startCommand(Long chatId, String userName, String firstName, String lastName) {
-        var text = "Добро пожаловать в бот, %s !";
-        var formattedText = String.format(text, userName,firstName,lastName);
-        sendMessage(chatId, formattedText);
+        String text;
+        String fullName = userName + firstName + lastName;
+        if (userName == null & lastName == null) {
+            text = "Добро пожаловать в бот, %s !";
+            var formattedText = String.format(text, firstName);
+            sendMessage(chatId, formattedText);
+        } else if (fullName == null) {
+            text = "Добро пожаловать в бот";
+            sendMessage(chatId, text);
+        } else {
+            text = "Добро пожаловать в бот, %s !";
+            var formattedText = String.format(text, userName);
+            sendMessage(chatId, formattedText);
+        }
     }
 
     private void unknownCommand(Long chatId) {
