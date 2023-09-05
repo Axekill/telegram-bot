@@ -44,7 +44,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     @Override
     public int process(List<Update> updates) {
-        updates.forEach(update -> {
+        for (Update update : updates) {
             logger.info("Processing update: {}", update);
             var message = update.message().text();
             var chatId = update.message().chat().id();
@@ -54,19 +54,20 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 String lastName = update.message().chat().lastName();
                 startCommand(chatId, userName, firstName, lastName);
             } else {
-                unknownCommand(chatId);
-            }
-            var matcher = PATTERN.matcher(message);
-            if (matcher.matches()) {
-                var dateTime = parse(matcher.group(1));
-                if (dateTime == null) {
-                    telegramBot.execute(new SendMessage(chatId,"Дата указана не верно"));
+                // unknownCommand(chatId);
+                var matcher = PATTERN.matcher(message);
+                if (matcher.matches()) {
+                    var dateTime = parse(matcher.group(1));
+                    if (dateTime == null) {
+                        telegramBot.execute(new SendMessage(chatId, "Дата указана не верно"));
+                        continue;
+                    }
+                    var taskText = matcher.group(3);
+                    repository.save(new NotificationTask(chatId, taskText, dateTime));
+                    telegramBot.execute(new SendMessage(chatId, "уведомление запланировано"));
                 }
-                var taskText = matcher.group(3);
-                repository.save(new NotificationTask(chatId, taskText, dateTime));
-                telegramBot.execute(new SendMessage(chatId,"уведомление запланировано"));
             }
-        });
+        }
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
 
@@ -96,10 +97,10 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         }
     }
 
-    private void unknownCommand(Long chatId) {
+   /* private void unknownCommand(Long chatId) {
         var text = "Не удалось распознать команду!";
         sendMessage(chatId, text);
-    }
+    }*/
 
     private void sendMessage(Long chatId, String text) {
         SendMessage message = new SendMessage(chatId, text);

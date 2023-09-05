@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset andrey:1
+--changeset andrey:2
 create table notification_task (
 id bigint primary key,
 chat_id  bigint,
