@@ -8,12 +8,11 @@ import java.util.Objects;
 @Table(name = "notification_task")
 public class NotificationTask {
     @Id
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
     @Column(name = "chat_id")
     private Long chatId;
-    @Column(name = "text_task")
+ //   @Column(name = "text_task")
     private String text;
     @Column(name = "date_time")
     private LocalDateTime dateTime;
@@ -56,7 +55,7 @@ public class NotificationTask {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         NotificationTask that = (NotificationTask) o;
-        return Objects.equals(chatId, that.chatId) && Objects.equals(text, that.text) && Objects.equals(dateTime, that.dateTime);
+        return id == that.id;
     }
 
     @Override

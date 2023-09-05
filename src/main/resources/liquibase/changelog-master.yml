@@ -1,5 +1,5 @@
 databaseChangeLog:
   - include:
-      file: liquibase/scripts/bot.sql
+      file: liquibase/scripts/bot2.xml
 
 

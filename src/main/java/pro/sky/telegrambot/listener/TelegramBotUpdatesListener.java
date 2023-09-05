@@ -18,15 +18,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.zip.DataFormatException;
 
 @Service
 public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static final String START = "/start";
-    private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16}(\\s)[\\W+]+)");
     private static final DateTimeFormatter DATE_TIME_PATTERN = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16}(\\s)[\\W+]+)");
 
 
     @Autowired
@@ -45,26 +44,29 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     @Override
     public int process(List<Update> updates) {
         for (Update update : updates) {
-            logger.info("Processing update: {}", update);
-            var message = update.message().text();
-            var chatId = update.message().chat().id();
-            if (message.equals(START)) {
-                String userName = update.message().chat().username();
-                String firstName = update.message().chat().firstName();
-                String lastName = update.message().chat().lastName();
-                startCommand(chatId, userName, firstName, lastName);
-            } else {
-                // unknownCommand(chatId);
-                var matcher = PATTERN.matcher(message);
-                if (matcher.matches()) {
-                    var dateTime = parse(matcher.group(1));
-                    if (dateTime == null) {
-                        telegramBot.execute(new SendMessage(chatId, "Дата указана не верно"));
-                        continue;
+            if (update.message() != null && update.message().text() != null) {
+                logger.info("Processing update: {}", update);
+                var message = update.message().text();
+                Long chatId = update.message().chat().id();
+                if (message.equals(START)) {
+                    String userName = update.message().chat().username();
+                    String firstName = update.message().chat().firstName();
+                    String lastName = update.message().chat().lastName();
+                    startCommand(chatId, userName, firstName, lastName);
+                } else {
+                    // unknownCommand(chatId);
+                    var matcher = PATTERN.matcher(message);
+                    if (matcher.matches()) {
+                        var dateTime = parse(matcher.group(1));
+                        if (dateTime == null) {
+                            telegramBot.execute(new SendMessage(chatId, "Дата указана не верно"));
+                            continue;
+                        }
+                        var taskText = matcher.group(3);
+                        var saved = repository.save(new NotificationTask(chatId, taskText, dateTime));
+                        telegramBot.execute(new SendMessage(chatId, "уведомление запланировано"));
+                        logger.info("Notification saved: {}", saved);
                     }
-                    var taskText = matcher.group(3);
-                    repository.save(new NotificationTask(chatId, taskText, dateTime));
-                    telegramBot.execute(new SendMessage(chatId, "уведомление запланировано"));
                 }
             }
         }
@@ -75,7 +77,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         try {
             return LocalDateTime.parse(text, DATE_TIME_PATTERN);
         } catch (DateTimeParseException e) {
-            logger.error("Cannot parse date and time:{}", text, e);
+            logger.error("Cannot parse date and time: {}", text, e);
         }
         return null;
     }
@@ -85,6 +87,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         String fullName = userName + firstName + lastName;
         if (userName == null & lastName == null) {
             text = "Добро пожаловать в бот, %s !";
+
             var formattedText = String.format(text, firstName);
             sendMessage(chatId, formattedText);
         } else if (fullName == null) {
