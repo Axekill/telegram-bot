@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Service
@@ -25,7 +26,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static final String START = "/start";
     private static final DateTimeFormatter DATE_TIME_PATTERN = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16}(\\s)[\\W+]+)");
+    private static final Pattern PATTERN = Pattern.compile("([0-9\\.\\:\\s]{16})(\\s)([\\W+]+)");
 
 
     @Autowired
@@ -46,20 +47,21 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         for (Update update : updates) {
             if (update.message() != null && update.message().text() != null) {
                 logger.info("Processing update: {}", update);
-                var message = update.message().text();
+                var text = update.message().text();
                 Long chatId = update.message().chat().id();
-                if (message.equals(START)) {
+                if (text.equals(START)) {
                     String userName = update.message().chat().username();
                     String firstName = update.message().chat().firstName();
                     String lastName = update.message().chat().lastName();
                     startCommand(chatId, userName, firstName, lastName);
                 } else {
                     // unknownCommand(chatId);
-                    var matcher = PATTERN.matcher(message);
+                    var matcher = PATTERN.matcher(text);
                     if (matcher.matches()) {
-                        var dateTime = parse(matcher.group(1));
+                        LocalDateTime dateTime = parse(matcher.group(1));
                         if (dateTime == null) {
-                            telegramBot.execute(new SendMessage(chatId, "Дата указана не верно"));
+                            new SendMessage(chatId,"Дата указана не верно");
+                           // telegramBot.execute(new SendMessage(chatId, "Дата указана не верно"));
                             continue;
                         }
                         var taskText = matcher.group(3);
@@ -83,19 +85,19 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
     }
 
     private void startCommand(Long chatId, String userName, String firstName, String lastName) {
-        String text;
+        String textChat;
         String fullName = userName + firstName + lastName;
         if (userName == null & lastName == null) {
-            text = "Добро пожаловать в бот, %s !";
+            textChat = "Добро пожаловать в бот, %s !";
 
-            var formattedText = String.format(text, firstName);
+            var formattedText = String.format(textChat, firstName);
             sendMessage(chatId, formattedText);
         } else if (fullName == null) {
-            text = "Добро пожаловать в бот";
-            sendMessage(chatId, text);
+            textChat = "Добро пожаловать в бот";
+            sendMessage(chatId, textChat);
         } else {
-            text = "Добро пожаловать в бот, %s !";
-            var formattedText = String.format(text, userName);
+            textChat = "Добро пожаловать в бот, %s !";
+            var formattedText = String.format(textChat, userName);
             sendMessage(chatId, formattedText);
         }
     }
